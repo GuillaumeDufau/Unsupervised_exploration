@@ -250,6 +250,11 @@ def get_visuals(
     4) bottom-right: percentage of the maze explored, computed from the x/y coordinates of the visited states
     nb_bins: parameter for heatmap granularity
     """
+    # create folder
+    try:
+        os.makedirs(save_path)
+    except FileExistsError:
+        pass
 
     # settings
     # trick to name the images in the creation order for the video creation

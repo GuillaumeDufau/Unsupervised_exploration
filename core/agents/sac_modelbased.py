@@ -91,7 +91,7 @@ class sacModelBased(SAC):
         """
         # saves
         try:
-            os.mkdir(path)
+            os.makedirs(path)
         except FileExistsError:
             pass
         torch.save(self.model.state_dict(), path + "model_steps_{}.pth".format(steps))

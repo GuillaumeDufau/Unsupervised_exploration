@@ -1,0 +1,53 @@
+{
+  "agent_name": "sacMB",
+  "env_name": "antmaze-zmaze-v0",
+  "env_config": {
+    "scale_action_space": 40,
+    "x_min": -22.5,
+    "x_max": 2.5,
+    "y_min": -2.5,
+    "y_max": 22.5,
+    "max_steps": 200,
+    "upper_wall_height_offset": 45.75,
+    "lower_wall_height_offset": 42.75,
+    "start_x": 5,
+    "start_y": -7
+  },
+
+  "agent_config": {
+    "discount": 0.999,
+    "soft_target_tau": 1e-2,
+    "policy_lr": 1e-2,
+    "critic_lr": 1e-2,
+    "target_update_period": 1,
+    "use_automatic_entropy_tuning": true,
+    "reward_scale": 1.0,
+    "target_entropy": null
+  },
+
+  "model_type": "ensemble",
+  "imagination_horizon": 1,
+  "num_sync_splits": 1,
+  "save_model": true,
+
+  "model_config": {
+    "nn_num_features": 2,
+    "model_lr": 1e-3,
+    "train_num_likelihood_samples": 8,
+    "test_num_likelihood_samples": 8,
+    "num_models": 5,
+    "dimensions_of_interest": [0 , 1]
+  },
+
+  "visuals": true,
+  "batch_size": 256,
+  "train_freq": 50,
+  "start_timesteps": 5e2,
+  "eval_freq": 1e3,
+  "max_timesteps": 10e4,
+  "nb_supervised_steps": 0,
+  "save_models": false,
+  "load_models": false,
+  "seed": 0,
+  "buffer_max_size": 1e6
+}

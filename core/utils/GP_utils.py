@@ -75,7 +75,8 @@ class DKLModel(gpytorch.Module):
     """
     from GPytorch library examples 'https://gpytorch.ai/'
 
-    :param grid_bounds: where to set the inducing points from SVDKL, i.e. range on which the function dynamics are estimated.
+    :param grid_bounds: where to set the inducing points from SVDKL,
+            i.e. range on which the function dynamics are estimated.
     :param feature_extractor: Neural Network used as feature extractor, trained alongside the GP
     """
 
@@ -93,7 +94,9 @@ class DKLModel(gpytorch.Module):
             features[0, 0] += np.random.normal(0.0, 0.0001, 1)
         elif features.shape[0] == 1 and features[0, 1] == 0.0:
             features[0, 1] += np.random.normal(0.0, 0.0001, 1)
-        features_scaled = gpytorch.utils.grid.scale_to_bounds(features, self.grid_bounds[0], self.grid_bounds[1])
+        features_scaled = gpytorch.utils.grid.scale_to_bounds(
+            features, self.grid_bounds[0], self.grid_bounds[1]
+        )
         # This next line makes it so that we learn a GP for each feature
         features = features_scaled.transpose(-1, -2).unsqueeze(-1)
         res = self.gp_layer(features)
@@ -117,7 +120,8 @@ class NeuralNetGaussianProcess(gpytorch.Module):
         self.config = config
 
         self.core = DKLModel(
-            NeuralNet(input_dim=input_dim, features_dim=config["nn_num_features"]), num_dim=config["nn_num_features"]
+            NeuralNet(input_dim=input_dim, features_dim=config["nn_num_features"]),
+            num_dim=config["nn_num_features"],
         )
 
         self.likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=output_dim)
@@ -137,7 +141,9 @@ class NeuralNetGaussianProcess(gpytorch.Module):
         )
 
         # compute the number of example the model will be trained on, pass this parameter in the mll
-        self.mll = gpytorch.mlls.VariationalELBO(self.likelihood, self.core.gp_layer, num_data=int(total_num_data))
+        self.mll = gpytorch.mlls.VariationalELBO(
+            self.likelihood, self.core.gp_layer, num_data=int(total_num_data)
+        )
 
     def __call__(self, x):
         return self.likelihood(self.core(x))
@@ -153,7 +159,9 @@ class NeuralNetGaussianProcess(gpytorch.Module):
             self.core.train()
             self.likelihood.train()
 
-            with gpytorch.settings.num_likelihood_samples(self.config["train_num_likelihood_samples"]):
+            with gpytorch.settings.num_likelihood_samples(
+                self.config["train_num_likelihood_samples"]
+            ):
                 self.optimizer.zero_grad()
                 output = self.core(data)
                 loss = -self.mll(output, target)
@@ -165,7 +173,8 @@ class NeuralNetGaussianProcess(gpytorch.Module):
 
     def test_model(self, data, target):
         """
-        For one query, the uncertainty prediction corresponds to the standard deviation over the sampled likelihoods.
+        For one query, the uncertainty prediction corresponds to
+        the standard deviation over the sampled likelihoods.
         :param data: X to be trained on, corresponds to (state, action) couples
         :param target: y labels for training, corresponds to next_state for each couple (state, action)
         """
@@ -173,22 +182,28 @@ class NeuralNetGaussianProcess(gpytorch.Module):
         self.likelihood.eval()
 
         correct = 0
-        with torch.no_grad(), gpytorch.settings.num_likelihood_samples(self.config["test_num_likelihood_samples"]):
+        with torch.no_grad(), gpytorch.settings.num_likelihood_samples(
+            self.config["test_num_likelihood_samples"]
+        ):
             if torch.cuda.is_available():
                 data, target = data.cuda(), target.cuda()
             predictions = self.likelihood(self.core(data))
             mean = predictions.mean
             lower, upper = predictions.confidence_region()
 
-    def get_predictions(self, input_sample, agent, imagination_horizon, dimensions_of_interest=None):
+    def get_predictions(
+        self, input_sample, agent, imagination_horizon, dimensions_of_interest=None
+    ):
         """
         For one query (state, action), the uncertainty prediction corresponds to the
         standard deviation over the sampled likelihoods.
 
         Outputs mean (equivalent to standard prediction) and the custom reward given
-        to the agent during self-exploration phase. Uses rollout of imagined states, outputs the uncertainty
+        to the agent during self-exploration phase. Uses rollout of imagined states,
+        outputs the uncertainty
         of the S(t+tau) state prediction as the reward.
-        The noise input are not sampled from the fitted noise generative model. Rather hardcoded Gaussians 0, 1.
+        The noise input are not sampled from the fitted noise generative model.
+        Rather hardcoded Gaussians 0, 1.
 
         :param input_sample: couples (state, action) passed as input to the model
         """
@@ -199,11 +214,15 @@ class NeuralNetGaussianProcess(gpytorch.Module):
 
             for i in range(obs_len):
                 if i not in dimensions_of_interest:
-                    input_sample[:, i] = torch.empty(input_sample.shape[0]).normal_(mean=0.0, std=1.0)
+                    input_sample[:, i] = torch.empty(input_sample.shape[0]).normal_(
+                        mean=0.0, std=1.0
+                    )
 
         self.core.eval()
         self.likelihood.eval()
-        with torch.no_grad(), gpytorch.settings.num_likelihood_samples(self.config["test_num_likelihood_samples"]):
+        with torch.no_grad(), gpytorch.settings.num_likelihood_samples(
+            self.config["test_num_likelihood_samples"]
+        ):
             if torch.cuda.is_available():
                 input_sample = input_sample.cuda()
             output = self.likelihood(self.core(input_sample))
@@ -224,9 +243,13 @@ class NeuralNetGaussianProcess(gpytorch.Module):
             # action t
             actions = agent.select_action(torch.Tensor(predicted_states))
             # (st, at)
-            predicted_states_actions = torch.cat((torch.Tensor(predicted_states), torch.Tensor(actions)), dim=-1)
+            predicted_states_actions = torch.cat(
+                (torch.Tensor(predicted_states), torch.Tensor(actions)), dim=-1
+            )
             # get st+1
-            with torch.no_grad(), gpytorch.settings.num_likelihood_samples(self.config["test_num_likelihood_samples"]):
+            with torch.no_grad(), gpytorch.settings.num_likelihood_samples(
+                self.config["test_num_likelihood_samples"]
+            ):
                 if torch.cuda.is_available():
                     input_sample = input_sample.cuda()
                 output = self.likelihood(self.core(predicted_states_actions))

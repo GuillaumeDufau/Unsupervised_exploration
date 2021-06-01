@@ -82,7 +82,8 @@ class TanhNormal(Distribution):
             self.normal_mean
             + self.normal_std
             * Normal(
-                torch.zeros(self.normal_mean.size()).to(self.device), torch.ones(self.normal_std.size()).to(self.device)
+                torch.zeros(self.normal_mean.size()).to(self.device),
+                torch.ones(self.normal_std.size()).to(self.device),
             ).sample()
         )
         z.requires_grad_()

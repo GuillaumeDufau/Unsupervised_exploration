@@ -34,7 +34,9 @@ class AntTrapEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         self._reset_noise_scale = reset_noise_scale
 
-        self._exclude_current_positions_from_observation = exclude_current_positions_from_observation
+        self._exclude_current_positions_from_observation = (
+            exclude_current_positions_from_observation
+        )
 
         local_path = os.path.dirname(__file__)
         xml_file = local_path + "/mujoco_assets/ant_trap.xml"
@@ -123,7 +125,9 @@ class AntTrapEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         noise_low = -self._reset_noise_scale
         noise_high = self._reset_noise_scale
 
-        qpos = self.init_qpos + self.np_random.uniform(low=noise_low, high=noise_high, size=self.model.nq)
+        qpos = self.init_qpos + self.np_random.uniform(
+            low=noise_low, high=noise_high, size=self.model.nq
+        )
         qvel = self.init_qvel + self._reset_noise_scale * self.np_random.randn(self.model.nv)
         self.set_state(qpos, qvel)
 
@@ -169,7 +173,10 @@ if __name__ == "__main__":
             timesteps += 1
         tf = time.time()
         print(
-            "episode reward: {}, time in s : {}, num timesteps: {}".format(total_reward, tf - t0, timesteps), flush=True
+            "episode reward: {}, time in s : {}, num timesteps: {}".format(
+                total_reward, tf - t0, timesteps
+            ),
+            flush=True,
         )
 
     num_episodes = 100

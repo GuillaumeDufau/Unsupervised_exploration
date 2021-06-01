@@ -94,7 +94,9 @@ def get_heat_map(list_of_points, save_path="", timestep=None, nb_bins=50, plot_l
 
     if plot_limits:
         xmin, xmax, ymin, ymax = plot_limits
-        heatmap, xedges, yedges = np.histogram2d(xs, ys, bins=nb_bins, range=[[xmin, xmax], [ymin, ymax]])
+        heatmap, xedges, yedges = np.histogram2d(
+            xs, ys, bins=nb_bins, range=[[xmin, xmax], [ymin, ymax]]
+        )
     else:
         heatmap, xedges, yedges = np.histogram2d(xs, ys, bins=nb_bins)
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
@@ -106,7 +108,9 @@ def get_heat_map(list_of_points, save_path="", timestep=None, nb_bins=50, plot_l
     plt.close()
 
 
-def get_uncertainty_map(model, agent, imagination_horizon, save_path="", timestep=None, plot_limits=None, nb_bins=50):
+def get_uncertainty_map(
+    model, agent, imagination_horizon, save_path="", timestep=None, plot_limits=None, nb_bins=50
+):
     """
     TODO: does not work properly, bug from the zs (uncertainty values)
     """
@@ -114,7 +118,11 @@ def get_uncertainty_map(model, agent, imagination_horizon, save_path="", timeste
     ys = np.linspace(-10, 10, nb_bins)
     xs, ys = np.meshgrid(xs, ys)
     input_samples = np.stack((xs, ys), axis=-1).reshape(nb_bins ** 2, 2)
-    actions = agent.actor(torch.from_numpy(input_samples).float(), deterministic=False)[0].cpu().data.numpy()
+    actions = (
+        agent.actor(torch.from_numpy(input_samples).float(), deterministic=False)[0]
+        .cpu()
+        .data.numpy()
+    )
 
     input_samples = torch.cat((torch.Tensor(input_samples), torch.Tensor(actions)), dim=1)
     _, zs = model.get_predictions(input_samples, agent, imagination_horizon=imagination_horizon)
@@ -200,8 +208,16 @@ def make_video_from_images(save_path="video", images_path="", fps=1):
 def update_percent_explored(new_obs, env_config, states_explored, list_percent_explored, x_y_dims):
     x_axis, y_axis = tuple(x_y_dims)
     for i in range(new_obs.shape[0]):
-        x_ = int((new_obs[i, x_axis] - env_config["x_min"] - 0.001) * 40 / (env_config["x_max"] - env_config["x_min"]))
-        y_ = int((new_obs[i, y_axis] - env_config["y_min"] - 0.001) * 40 / (env_config["y_max"] - env_config["y_min"]))
+        x_ = int(
+            (new_obs[i, x_axis] - env_config["x_min"] - 0.001)
+            * 40
+            / (env_config["x_max"] - env_config["x_min"])
+        )
+        y_ = int(
+            (new_obs[i, y_axis] - env_config["y_min"] - 0.001)
+            * 40
+            / (env_config["y_max"] - env_config["y_min"])
+        )
     if not states_explored[x_, y_]:
         states_explored[x_, y_] = True
         nb_discretized_states = states_explored.sum()
@@ -264,7 +280,11 @@ def get_visuals(
     input_states[:, :, y_axis] = ys
     input_states = input_states.reshape(nb_bins ** 2, obs_len)
 
-    actions = agent.actor(torch.from_numpy(input_states).float(), deterministic=False)[0].cpu().data.numpy()
+    actions = (
+        agent.actor(torch.from_numpy(input_states).float(), deterministic=False)[0]
+        .cpu()
+        .data.numpy()
+    )
 
     input_samples = torch.cat((torch.Tensor(input_states), torch.Tensor(actions)), dim=1)
     _, zs = model.get_predictions(input_samples, agent, imagination_horizon=imagination_horizon)
@@ -273,7 +293,9 @@ def get_visuals(
         xmin, xmax, ymin, ymax = plot_limits
 
     # plot the heatmap
-    c = ax1.pcolormesh(xs, ys, np.array(zs), cmap="RdBu", vmin=np.min(zs), vmax=np.max(zs))  # min(np.max(zs), 10.))
+    c = ax1.pcolormesh(
+        xs, ys, np.array(zs), cmap="RdBu", vmin=np.min(zs), vmax=np.max(zs)
+    )  # min(np.max(zs), 10.))
     ax1.set_title("Model uncertainty")
     fig.colorbar(c, ax=ax1)
 
@@ -287,9 +309,9 @@ def get_visuals(
         x_1A, y_1A = 4.00, env_config["upper_wall_height_offset"]
         x_1B, y_1B = 2.50, env_config["lower_wall_height_offset"]
     else:
-        x_1A, y_1A = (env_config["x_max"] - env_config["x_min"]) * 0.75 + env_config["x_min"], env_config[
-            "upper_wall_height_offset"
-        ]
+        x_1A, y_1A = (env_config["x_max"] - env_config["x_min"]) * 0.75 + env_config[
+            "x_min"
+        ], env_config["upper_wall_height_offset"]
         x_1B, y_1B = (
             -(env_config["x_max"] - env_config["x_min"]) * 0.75 + env_config["x_max"],
             env_config["lower_wall_height_offset"],
@@ -310,7 +332,9 @@ def get_visuals(
     x_axis = np.array(
         list(
             range(
-                0, len(list_of_rewards) * nb_threads * int(config["eval_freq"]), nb_threads * int(config["eval_freq"])
+                0,
+                len(list_of_rewards) * nb_threads * int(config["eval_freq"]),
+                nb_threads * int(config["eval_freq"]),
             )
         )
     )
@@ -318,7 +342,9 @@ def get_visuals(
     # ax4.set_xticklabels(list(range(0, int(nb_steps_total* nb_threads), int(config["eval_freq"]))))
     ax3.set(xlabel="Environment steps", ylabel="Average reward", title="Evaluation rewards")
     ax3.set_xlim(0, nb_steps_total * nb_threads)
-    ax3.axvspan(unsupervised_steps * nb_threads, nb_steps_total * nb_threads, facecolor="g", alpha=0.1)
+    ax3.axvspan(
+        unsupervised_steps * nb_threads, nb_steps_total * nb_threads, facecolor="g", alpha=0.1
+    )
     ax3.grid()
 
     ## 4) Plot the exploration percentage evolution from the agent
@@ -330,7 +356,9 @@ def get_visuals(
     ax4.grid()
     ax4.set_ylim(0.0, 100.0)
     ax4.set_xlim(0, nb_steps_total * nb_threads)
-    ax4.axvspan(unsupervised_steps * nb_threads, nb_steps_total * nb_threads, facecolor="g", alpha=0.1)
+    ax4.axvspan(
+        unsupervised_steps * nb_threads, nb_steps_total * nb_threads, facecolor="g", alpha=0.1
+    )
 
     # Save the 4 plots
     fig.savefig(save_path, dpi=300)

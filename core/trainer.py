@@ -8,7 +8,11 @@ from mpi4py import MPI
 from core.utils.point_maze import PointMaze
 
 # from core.utils.ant_maze import initiate_antMaze
-from core.utils.mpi_utils import sync_params, create_comm_correspondences, setup_pytorch_for_mpi
+from core.utils.mpi_utils import (
+    sync_params,
+    create_comm_correspondences,
+    setup_pytorch_for_mpi,
+)
 from core.utils.replay_buffer import ReplayBuffer
 from core.agents.sac_modelbased import sacModelBased
 from core.utils.visualization_utils import (
@@ -28,16 +32,37 @@ comm = MPI.COMM_WORLD
 num_workers = comm.Get_size()
 rank = comm.Get_rank()
 
+
 # initiate_antMaze()
 
 
 class Trainer:
-    def __init__(self, config):
+    """Models and agent trainer.
 
+    This is the component where the models and agent are trained according
+    to their training frequencies. Tests are also ran in this class.
+    It also handles the environments steps and visual and weights saves.
+    """
+
+    def __init__(self, config):
+        """Initializes the learner.
+        Main args (in config):
+          num_workers: number of processes for parallel runs.
+          env_config: all settings specific to chosen environment.
+          agent_name: agent's algorithm, containing its model (e.g. SAC agent + specific model)
+          agent_config: contains information for the agent as well as the model
+            (e.g. ensemble of models or Gaussian process based)
+
+          config also contains standard ML training parameters (learning rates etc)
+        """
+
+        # mpi parralelization setup
         setup_pytorch_for_mpi()
 
         # different save dir every run
-        self.saves_dir = os.path.join("run_data", time.strftime("%d-%b-%Y_%H.%M.%S", time.localtime()))
+        self.saves_dir = os.path.join(
+            "run_data", time.strftime("%d-%b-%Y_%H.%M.%S", time.localtime())
+        )
 
         self.config = config
         # number of parallel processes
@@ -47,10 +72,14 @@ class Trainer:
         if self.config["env_name"] == "PointMaze-v0":
             self.env = PointMaze(**config["env_config"])
         elif self.config["env_name"] == "PointMazeEnv":
-            self.env = PointMazeEnv(maze_spec=THREE_CORRIDORS_MAZE, max_timesteps=config["env_config"]["max_steps"])
+            self.env = PointMazeEnv(
+                maze_spec=THREE_CORRIDORS_MAZE,
+                max_timesteps=config["env_config"]["max_steps"],
+            )
         elif self.config["env_name"] == "PointMaze_inertia":
             self.env = PointMazeWithInertiaEnv(
-                maze_spec=THREE_CORRIDORS_MAZE, max_timesteps=config["env_config"]["max_steps"]
+                maze_spec=THREE_CORRIDORS_MAZE,
+                max_timesteps=config["env_config"]["max_steps"],
             )
         else:
             self.env = gym.make(self.config["env_name"])
@@ -96,9 +125,13 @@ class Trainer:
         # Metrics
         global_eval_score = self.evaluate(self.env)
         if rank == 0:
-            self.metrics = {"global_ep_rewards": [], "global_evalutations": [global_eval_score]}
+            self.metrics = {
+                "global_ep_rewards": [],
+                "global_evalutations": [global_eval_score],
+            }
 
-    def evaluate(self, env, num_eval_episodes=10, visual=False, traces=False, timestep=None):
+    def evaluate(self, env, num_eval_episodes=1, visual=False, traces=False, timestep=None):
+        """Evaluate the state of learning"""
         avg_reward = 0.0
         for i in range(num_eval_episodes):
             actions_taken = []
@@ -114,25 +147,40 @@ class Trainer:
         avg_reward /= num_eval_episodes
         print("rank {} evaluation reward {}".format(rank, avg_reward))
         global_avg_reward = np.mean(comm.allgather(avg_reward))
+
+        # Additional visual effects specific to testing phases
         if visual and rank == 0:
             get_video(env, actions_taken, avg_reward, self.config["max_timesteps"])
         if traces and rank == 0:
             if self.config["env_name"] == "PointMaze-v0":
                 plot_traces(env, actions_taken, num_workers=i, maze_env=True, timestep=timestep)
         if rank == 0:
-            print("---------------------------------------")
             print(
                 "Evaluation with {} workers over {} total episodes: {}".format(
                     num_workers, num_eval_episodes * num_workers, global_avg_reward
                 )
             )
-            print("---------------------------------------")
         return global_avg_reward
 
     def train(self):
+        """Trains the model(s) as well as the agent. Saves visuals, weights on external files.
+        Adds data to the replay buffer and runs steps in the environment
+
+        One env step possible operations (when corresponds to config frequency):
+          - reset env
+          - update model and agent (initiate model if needed)
+          - run evaluation steps on main process, saves the results in visuals etc
+          - select action
+          - run one env step
+          - if final step: saves specific final visuals and information
+        """
         torch.set_num_threads(1)
         if rank == 0:
-            file_name = "%s_%s_%s" % (self.config["agent_name"], self.config["env_name"], str(self.seed))
+            file_name = "%s_%s_%s" % (
+                self.config["agent_name"],
+                self.config["env_name"],
+                str(self.seed),
+            )
             print("---------------------------------------")
             print("Settings: %s" % (file_name))
             print("---------------------------------------")
@@ -154,17 +202,25 @@ class Trainer:
                 episode_num += 1
 
             # Update
-            if total_timesteps % self.config["train_freq"] == 0 and total_timesteps > self.config["batch_size"]:
+            if (
+                total_timesteps % self.config["train_freq"] == 0
+                and total_timesteps > self.config["batch_size"]
+            ):
                 # create the model or synchronize the real model and its copy for rewards renewal
                 if not self.agent.model:
-                    self.agent.initiate_model(self.obs_len + self.num_actions, self.obs_len, self.config)
+                    self.agent.initiate_model(
+                        self.obs_len + self.num_actions, self.obs_len, self.config
+                    )
                 else:
                     # update model_copy's weights
                     self.agent.update_model_copy_weights(self.config["model_type"])
 
-                # update model's noise generative model (to encourage exploration on specific dimensions of interest)
+                # update model's noise generative model
+                # (to encourage exploration on specific dimensions of interest)
                 if self.config["model_config"].get("dimensions_of_interest") is not None:
-                    new_obs = np.vstack(np.array(self.replay_buffer.storage[last_noise_fit:total_timesteps])[:, 0])
+                    new_obs = np.vstack(
+                        np.array(self.replay_buffer.storage[last_noise_fit:total_timesteps])[:, 0]
+                    )
                     self.agent.model.fit_noise(new_obs[:, 2:])
                     self.agent.model_copy.fit_noise(new_obs[:, 2:])
                     last_noise_fit = total_timesteps
@@ -173,14 +229,22 @@ class Trainer:
                 for _ in range(self.config["train_freq"]):
                     batch = self.replay_buffer.sample(batch_size=self.config["batch_size"])
 
-                    # changes the training type according to the phase we're in (novelty search vs few/zero shot)
-                    if total_timesteps <= self.config["max_timesteps"] - self.config["nb_supervised_steps"]:
-                        # unsupervised phase, the reward is still predicted from the model uncertainty
+                    # changes the training type according to the phase we're in
+                    # (novelty search vs few/zero shot)
+                    if (
+                        total_timesteps
+                        <= self.config["max_timesteps"] - self.config["nb_supervised_steps"]
+                    ):
+                        # unsupervised phase, the reward is still predicted
+                        # from the model uncertainty
                         self.agent.train_on_batch(
-                            batch, imagination_horizon=self.config["imagination_horizon"], comm=self.splitted_com
+                            batch,
+                            imagination_horizon=self.config["imagination_horizon"],
+                            comm=self.splitted_com,
                         )
                     else:
-                        # supervised phase, zero or few shots, the reward_function gives the estimated reward
+                        # supervised phase, zero or few shots, the reward_function gives
+                        # the estimated reward
                         self.agent.train_on_batch(
                             batch,
                             imagination_horizon=self.config["imagination_horizon"],
@@ -190,10 +254,19 @@ class Trainer:
 
             # Evaluation
             if total_timesteps % self.config["eval_freq"] == 0 and total_timesteps > 0:
-                print("timesteps", round(total_timesteps / self.config["max_timesteps"], 2))
-                global_eval_score = self.evaluate(self.env, num_eval_episodes=2, traces=False, timestep=total_timesteps)
+                print(
+                    "timesteps",
+                    round(total_timesteps / self.config["max_timesteps"], 2),
+                )
+                global_eval_score = self.evaluate(
+                    self.env,
+                    num_eval_episodes=2,
+                    traces=False,
+                    timestep=total_timesteps,
+                )
                 global_timesteps = sum(comm.allgather(total_timesteps))
-                # make sure the env is in reset state to avoid bugs, better solution is an env copy for experiments
+                # make sure the env is in reset state to avoid bugs, better solution is an
+                # env copy for experiments
                 observation = self.env.reset()
 
                 if rank == 0:
@@ -206,7 +279,10 @@ class Trainer:
                 # gather the points from every worker
                 all_points_location = None
                 if rank == 0:
-                    all_points_location = np.empty([num_workers, len(self.global_points_location), 2], dtype="float")
+                    all_points_location = np.empty(
+                        [num_workers, len(self.global_points_location), 2],
+                        dtype="float",
+                    )
                 comm.Gather(np.array(self.global_points_location), all_points_location, root=0)
                 if self.config["visuals"] and rank == 0 and self.agent.model:
                     all_points_location = all_points_location.reshape(
@@ -229,9 +305,12 @@ class Trainer:
                             self.env_config["y_max"],
                         ],
                     )
+
+                # saves model weights
                 if self.config["save_model"] and rank == 0 and self.agent.model is not None:
                     self.agent.save_model(
-                        path="saves/seed_{}/".format(self.seed), steps=num_workers * len(self.global_points_location)
+                        path="saves/seed_{}/".format(self.seed),
+                        steps=num_workers * len(self.global_points_location),
                     )
 
             # Select action randomly or according to policy
@@ -254,12 +333,14 @@ class Trainer:
                 comm.Gather(np.array(new_observation), new_visited, root=0)
                 # update the visuals lists for maze coverage in percent
                 if rank == 0:
-                    self.states_explored, self.list_percent_explored = update_percent_explored(
+                    (self.states_explored, self.list_percent_explored,) = update_percent_explored(
                         new_visited,
                         self.env_config,
                         self.states_explored,
                         self.list_percent_explored,
-                        self.config["model_config"].get("dimensions_of_interest", list(range(self.obs_len))),
+                        self.config["model_config"].get(
+                            "dimensions_of_interest", list(range(self.obs_len))
+                        ),
                     )
 
             # update episode stats
@@ -278,17 +359,21 @@ class Trainer:
         global_eval_score = self.evaluate(self.env, num_eval_episodes=2, visual=False, traces=False)
         all_points_location = None
         if rank == 0:
-            all_points_location = np.empty([num_workers, len(self.global_points_location), self.obs_len], dtype="float")
+            all_points_location = np.empty(
+                [num_workers, len(self.global_points_location), self.obs_len],
+                dtype="float",
+            )
         comm.Gather(np.array(self.global_points_location), all_points_location, root=0)
 
+        # final visual and checkpoints saves (done on the main process)
         if rank == 0:
             self.metrics["global_evalutations"].append(global_eval_score)
             if self.config["save_models"]:
                 self.agent.save("checkpoint_" + str(global_timesteps), self.saves_dir)
 
-            # save visited points
-            # with open('./saves/seed_{}/pts_location_step_{}.txt'.format(self.seed, tot_steps), "wb") as fp:
-            #     pickle.dump(all_points_location, fp)
-
             plot_loss_evolution(self.agent.model_losses)
-            make_video_from_images(save_path="visuals/agentpaths_model_evolution", images_path="visuals/", fps=1)
+            make_video_from_images(
+                save_path="visuals/agentpaths_model_evolution",
+                images_path="visuals/",
+                fps=1,
+            )

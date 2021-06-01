@@ -58,7 +58,7 @@ def setup_pytorch_for_mpi():
 
 
 def mpi_avg_grads(module):
-    """ Average contents of gradient buffers across MPI processes. """
+    """Average contents of gradient buffers across MPI processes."""
     if num_procs() == 1:
         return
     for p in module.parameters():
@@ -75,7 +75,7 @@ def mpi_avg_grads(module):
 
 
 def sync_params(module):
-    """ Sync all parameters of module across all MPI processes. """
+    """Sync all parameters of module across all MPI processes."""
     if num_procs() == 1:
         return
     for p in module.parameters():

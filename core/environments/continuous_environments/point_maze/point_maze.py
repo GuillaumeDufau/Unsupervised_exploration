@@ -6,8 +6,13 @@ import matplotlib.pyplot as plt
 
 
 from d4rl.pointmaze.maze_model import WALL
-from core.environments.continuous_environments.point_maze.maze_utils import MAZE, THREE_CORRIDORS_MAZE
-from core.environments.continuous_environments.point_maze.point_maze_inertia import PointMazeWithInertiaEnv
+from core.environments.continuous_environments.point_maze.maze_utils import (
+    MAZE,
+    THREE_CORRIDORS_MAZE,
+)
+from core.environments.continuous_environments.point_maze.point_maze_inertia import (
+    PointMazeWithInertiaEnv,
+)
 
 
 class PointMazeEnv(PointMazeWithInertiaEnv):
@@ -34,7 +39,9 @@ class PointMazeEnv(PointMazeWithInertiaEnv):
         for i in range(np.max(np.array(self.wall_locations)[:, 0])):
             for j in range(np.max(np.array(self.wall_locations)[:, 1])):
                 self.walls_to_check[(i, j)] = [
-                    wall for wall in self.wall_locations if np.abs(wall[0] - i) < 2 and np.abs(wall[1] - j) < 2
+                    wall
+                    for wall in self.wall_locations
+                    if np.abs(wall[0] - i) < 2 and np.abs(wall[1] - j) < 2
                 ]
 
     def step(self, action: np.ndarray):

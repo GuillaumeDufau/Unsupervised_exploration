@@ -11,7 +11,8 @@ from sklearn import mixture
 
 
 class MLP(nn.Module):
-    """Multilayer perceptron (MLP) with tanh/sigmoid activation functions implemented in PyTorch for regression tasks.
+    """Multilayer perceptron (MLP) with tanh/sigmoid activation
+    functions implemented in PyTorch for regression tasks.
 
     Attributes:
         inputs (int): inputs of the network
@@ -40,7 +41,9 @@ class MLP(nn.Module):
         # create linear layers y = Wx + b
 
         for i in range(self.nLayers + 1):
-            setattr(self, "layer_" + str(i), nn.Linear(self.net_structure[i], self.net_structure[i + 1]))
+            setattr(
+                self, "layer_" + str(i), nn.Linear(self.net_structure[i], self.net_structure[i + 1])
+            )
 
     def forward(self, x):
         # connect layers
@@ -120,7 +123,10 @@ class EnsembleModel(nn.Module):
         self.models = []
         for i in range(self.num_models):
             model = GaussianMLP(
-                inputs=self.inputs, outputs=self.outputs, hidden_layers=self.hidden_layers, activation=self.activation
+                inputs=self.inputs,
+                outputs=self.outputs,
+                hidden_layers=self.hidden_layers,
+                activation=self.activation,
             )
             setattr(self, "model_" + str(i), model)
             self.models.append(model)
@@ -129,11 +135,15 @@ class EnsembleModel(nn.Module):
         for i in range(self.num_models):
             model = getattr(self, "model_" + str(i))
             self.models_optimizers.append(
-                torch.optim.Adam(params=model.parameters(), lr=config["model_lr"], weight_decay=4e-5)
+                torch.optim.Adam(
+                    params=model.parameters(), lr=config["model_lr"], weight_decay=4e-5
+                )
             )
 
         # mixture of Gaussians for noise sampling in case of behavior descriptor approach
-        self.state_noise_density = mixture.BayesianGaussianMixture(n_components=self.outputs, tol=1e-1, max_iter=10)
+        self.state_noise_density = mixture.BayesianGaussianMixture(
+            n_components=self.outputs, tol=1e-1, max_iter=10
+        )
 
     def fit_noise(self, X_train):
         """
@@ -184,7 +194,9 @@ class EnsembleModel(nn.Module):
 
         return float(loss)
 
-    def get_predictions(self, input_sample, agent, imagination_horizon=1, dimensions_of_interest=None):
+    def get_predictions(
+        self, input_sample, agent, imagination_horizon=1, dimensions_of_interest=None
+    ):
         """
         Output mean (equivalent to standard prediction) and the custom reward given
         to the agent during self-exploration phase.
@@ -207,7 +219,12 @@ class EnsembleModel(nn.Module):
 
                 sampled_noise, _ = self.state_noise_density.sample(input_sample.shape[0])
                 input_sample = torch.cat(
-                    (input_sample[:, :2], torch.FloatTensor(sampled_noise), input_sample[:, obs_len:]), dim=-1
+                    (
+                        input_sample[:, :2],
+                        torch.FloatTensor(sampled_noise),
+                        input_sample[:, obs_len:],
+                    ),
+                    dim=-1,
                 )
 
             # step t
@@ -216,7 +233,9 @@ class EnsembleModel(nn.Module):
                 # action t
                 actions = agent.select_action(torch.Tensor(predicted_states))
                 # (st, at)
-                predicted_states_actions = torch.cat((torch.Tensor(predicted_states), torch.Tensor(actions)), dim=-1)
+                predicted_states_actions = torch.cat(
+                    (torch.Tensor(predicted_states), torch.Tensor(actions)), dim=-1
+                )
                 # get st+1
                 predicted_states, all_models_means = self.forward(predicted_states_actions)
 

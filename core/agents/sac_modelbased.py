@@ -45,9 +45,9 @@ class sacModelBased(SAC):
         """
         if config["model_type"] == "GP":
             # Gaussian process needs to be initialized knowing the max amount of data it will encounter
-            total_num_data = ((config["max_timesteps"] - config["batch_size"]) // config["train_freq"]) * config[
-                "batch_size"
-            ]
+            total_num_data = (
+                (config["max_timesteps"] - config["batch_size"]) // config["train_freq"]
+            ) * config["batch_size"]
             self.model = NeuralNetGaussianProcess(
                 inputs,
                 outputs,
@@ -75,7 +75,9 @@ class sacModelBased(SAC):
         if observation.ndim == 1:
             # single prediction useful during rollout phases
             observation = torch.FloatTensor(observation.reshape(1, -1)).to(device)
-            return self.actor(observation, deterministic=deterministic)[0].cpu().data.numpy().flatten()
+            return (
+                self.actor(observation, deterministic=deterministic)[0].cpu().data.numpy().flatten()
+            )
         else:
             # batch size predictions
             observation = torch.FloatTensor(observation).to(device)
@@ -110,22 +112,32 @@ class sacModelBased(SAC):
                 model_copy.load_state_dict(model_statedict)
 
     def compute_rewards(
-        self, observations, actions, reward_function, imagination_horizon=1, dimensions_of_interest=None
+        self,
+        observations,
+        actions,
+        reward_function,
+        imagination_horizon=1,
+        dimensions_of_interest=None,
     ):
         """
         Compute each sample's reward depending on the training phase we're in.
         If unsupervised, reward_function is None. Therefore the rewards are the model's uncertainties
-        If zero/few shots, the reward_function can be the one provided by the environment. It corresponds to the objective task
+        If zero/few shots, the reward_function can be the one provided by the environment.
+        It corresponds to the objective task
 
         :param reward_function: function to be used for the rewards modification R
-        :param dimensions_of_interest: in unsupervised phase, dimensions where no noise is inputed to get the model's uncertainty.
-                    if dimensions_of_interest is None, no noise but the entire sample s_t serves as input
+        :param dimensions_of_interest: in unsupervised phase,
+                dimensions where no noise is inputed to get the model's uncertainty.
+                if dimensions_of_interest is None, no noise but the entire sample s_t serves as input
         """
         # data is couple (state, action) which is the input for the model
         data = torch.cat((torch.Tensor(observations), torch.Tensor(actions)), dim=1)
         if not reward_function:
             _, rewards = self.model_copy.get_predictions(
-                data, self, imagination_horizon=imagination_horizon, dimensions_of_interest=dimensions_of_interest
+                data,
+                self,
+                imagination_horizon=imagination_horizon,
+                dimensions_of_interest=dimensions_of_interest,
             )
             rewards = torch.FloatTensor(rewards).view(-1, 1).to(device)
         else:
@@ -155,7 +167,7 @@ class sacModelBased(SAC):
         new_observations = torch.FloatTensor(batch["new_observations"]).to(device)
 
         # recompute the batch rewards
-        dims = getattr(self.model.config, "dimensions_of_interest", None)
+        dims = self.model.config.get("dimensions_of_interest", None)
         rewards, data = self.compute_rewards(
             observations,
             actions,
@@ -167,7 +179,9 @@ class sacModelBased(SAC):
         self.model_losses.append(self.model.train_model(data, target=new_observations))
 
         # compute actor and alpha losses
-        new_obs_actions, policy_mean, policy_log_std, log_pi, *_ = self.actor(observations, return_log_prob=True)
+        new_obs_actions, policy_mean, policy_log_std, log_pi, *_ = self.actor(
+            observations, return_log_prob=True
+        )
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
             self.alpha_optimizer.zero_grad()
@@ -191,7 +205,9 @@ class sacModelBased(SAC):
         target_Q_values = torch.min(target_Q1, target_Q2) - alpha * new_log_pi
 
         target_Q = self.reward_scale * rewards + (done * self.discount * target_Q_values)
-        critic_loss = F.mse_loss(current_Q1, target_Q.detach()) + F.mse_loss(current_Q2, target_Q.detach())
+        critic_loss = F.mse_loss(current_Q1, target_Q.detach()) + F.mse_loss(
+            current_Q2, target_Q.detach()
+        )
 
         # optimization
         self.critic_optimizer.zero_grad()

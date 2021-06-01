@@ -1,7 +1,11 @@
 from d4rl.pointmaze.maze_model import GOAL, WALL
 from gym.envs.mujoco import mujoco_env
 from gym import utils
-from core.environments.continuous_environments.point_maze.maze_utils import MAZE, THREE_CORRIDORS_MAZE, START
+from core.environments.continuous_environments.point_maze.maze_utils import (
+    MAZE,
+    THREE_CORRIDORS_MAZE,
+    START,
+)
 from core.environments.continuous_environments.point_maze.maze_utils import parse_maze, point_maze
 
 import numpy as np
@@ -88,7 +92,9 @@ class PointMazeWithInertiaEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         if target_location is None:
             idx = self.np_random.choice(len(self.goal_locations))
             reset_location = np.array(self.goal_locations[idx]).astype(self.observation_space.dtype)
-            target_location = reset_location  # + self.np_random.uniform(low=-.1, high=.1, size=self.model.nq)
+            target_location = (
+                reset_location  # + self.np_random.uniform(low=-.1, high=.1, size=self.model.nq)
+            )
         self._target = target_location
 
     def set_marker(self):

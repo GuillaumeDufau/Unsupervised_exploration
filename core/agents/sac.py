@@ -112,7 +112,7 @@ class SAC(OffPolicyAlgorithm):
     def __init__(self, obs_space, action_space, config):
 
         observation_dim = obs_space.shape[0]
-        assert isinstance(action_space, Box), 'action space is not Continuous'
+        assert isinstance(action_space, Box), "action space is not Continuous"
         action_dim = action_space.shape[0]
         max_action = action_space.high[0]
 
@@ -127,7 +127,7 @@ class SAC(OffPolicyAlgorithm):
         # List of networks that'll be synchronized before training
         self.networks_to_sync = [self.actor, self.critic, self.critic_target]
 
-        super(SAC, self).__init__(actor=self.actor, critic=self.critic, name='SAC')
+        super(SAC, self).__init__(actor=self.actor, critic=self.critic, name="SAC")
 
         self.soft_target_tau = config["soft_target_tau"]
         self.target_update_period = config["target_update_period"]
@@ -139,7 +139,9 @@ class SAC(OffPolicyAlgorithm):
             if config["target_entropy"]:
                 self.target_entropy = config["target_entropy"]
             else:
-                self.target_entropy = -np.prod(self.action_dim).item()  # heuristic value from Tuomas
+                self.target_entropy = -np.prod(
+                    self.action_dim
+                ).item()  # heuristic value from Tuomas
             self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
             self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=config["policy_lr"])
 
@@ -156,14 +158,16 @@ class SAC(OffPolicyAlgorithm):
         self._n_train_steps_total += 1
 
         # read batch
-        rewards = torch.FloatTensor(batch['rewards']).view(-1, 1).to(device)
-        done = torch.FloatTensor(1. - batch['terminals']).view(-1, 1).to(device)
-        observations = torch.FloatTensor(batch['observations']).to(device)
-        actions = torch.FloatTensor(batch['actions']).to(device)
-        new_observations = torch.FloatTensor(batch['new_observations']).to(device)
+        rewards = torch.FloatTensor(batch["rewards"]).view(-1, 1).to(device)
+        done = torch.FloatTensor(1.0 - batch["terminals"]).view(-1, 1).to(device)
+        observations = torch.FloatTensor(batch["observations"]).to(device)
+        actions = torch.FloatTensor(batch["actions"]).to(device)
+        new_observations = torch.FloatTensor(batch["new_observations"]).to(device)
 
         # compute actor and alpha losses
-        new_obs_actions, policy_mean, policy_log_std, log_pi, *_ = self.actor(observations, return_log_prob=True)
+        new_obs_actions, policy_mean, policy_log_std, log_pi, *_ = self.actor(
+            observations, return_log_prob=True
+        )
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
             self.alpha_optimizer.zero_grad()
@@ -176,7 +180,7 @@ class SAC(OffPolicyAlgorithm):
 
         Q1_new_actions, Q2_new_actions = self.critic_target(observations, new_obs_actions)
         Q_new_actions = torch.min(Q1_new_actions, Q2_new_actions)
-        actor_loss = (alpha*log_pi - Q_new_actions).mean()
+        actor_loss = (alpha * log_pi - Q_new_actions).mean()
 
         # compute critic losses
         current_Q1, current_Q2 = self.critic(observations, actions)
@@ -187,7 +191,9 @@ class SAC(OffPolicyAlgorithm):
         target_Q_values = torch.min(target_Q1, target_Q2) - alpha * new_log_pi
 
         target_Q = self.reward_scale * rewards + (done * self.discount * target_Q_values)
-        critic_loss = F.mse_loss(current_Q1, target_Q.detach()) + F.mse_loss(current_Q2, target_Q.detach())
+        critic_loss = F.mse_loss(current_Q1, target_Q.detach()) + F.mse_loss(
+            current_Q2, target_Q.detach()
+        )
 
         # optimization
         self.critic_optimizer.zero_grad()
@@ -203,6 +209,3 @@ class SAC(OffPolicyAlgorithm):
         # soft updates
         if self._n_train_steps_total % self.target_update_period == 0:
             self.soft_update_from_to(self.critic, self.critic_target, self.soft_target_tau)
-
-
-

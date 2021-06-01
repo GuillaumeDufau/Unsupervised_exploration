@@ -44,11 +44,24 @@ def point_maze(maze_str):
     mjcmodel.root.option(timestep="0.01", gravity="0 0 0", iterations="20", integrator="Euler")
     default = mjcmodel.root.default()
     default.joint(damping=1, limited="false")
-    default.geom(friction=".5 .1 .1", density="1000", margin="0.002", condim="1", contype="2", conaffinity="1")
+    default.geom(
+        friction=".5 .1 .1",
+        density="1000",
+        margin="0.002",
+        condim="1",
+        contype="2",
+        conaffinity="1",
+    )
 
     asset = mjcmodel.root.asset()
     asset.texture(
-        type="2d", name="groundplane", builtin="checker", rgb1="0.2 0.3 0.4", rgb2="0.1 0.2 0.3", width=100, height=100
+        type="2d",
+        name="groundplane",
+        builtin="checker",
+        rgb1="0.2 0.3 0.4",
+        rgb2="0.1 0.2 0.3",
+        width=100,
+        height=100,
     )
     asset.texture(
         name="skybox",
@@ -72,7 +85,13 @@ def point_maze(maze_str):
 
     worldbody = mjcmodel.root.worldbody()
     worldbody.geom(
-        name="ground", size="40 40 0.25", pos="0 0 -0.1", type="plane", contype=1, conaffinity=0, material="groundplane"
+        name="ground",
+        size="40 40 0.25",
+        pos="0 0 -0.1",
+        type="plane",
+        contype=1,
+        conaffinity=0,
+        material="groundplane",
     )
 
     particle = worldbody.body(name="particle", pos=[1.2, 1.2, 0])

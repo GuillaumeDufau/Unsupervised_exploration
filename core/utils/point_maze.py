@@ -39,7 +39,9 @@ class PointMaze(gym.Env):
 
         # Action: dx, dy
 
-        self.action_space = spaces.Box(self.low / scale_action_space, self.high / scale_action_space, dtype=np.float32)
+        self.action_space = spaces.Box(
+            self.low / scale_action_space, self.high / scale_action_space, dtype=np.float32
+        )
         # Observation: x, y
         self.observation_space = spaces.Box(self.low, self.high, dtype=np.float32)
 
@@ -80,8 +82,16 @@ class PointMaze(gym.Env):
 
         zone_center_width, zone_center_height = self.zone_width_offset, self.zone_height_offset
 
-        if zone_center_width - self.zone_width / 2 <= x_pos <= zone_center_width + self.zone_width / 2:
-            if zone_center_height - self.zone_width / 2 <= y_pos <= zone_center_height + self.zone_width / 2:
+        if (
+            zone_center_width - self.zone_width / 2
+            <= x_pos
+            <= zone_center_width + self.zone_width / 2
+        ):
+            if (
+                zone_center_height - self.zone_width / 2
+                <= y_pos
+                <= zone_center_height + self.zone_width / 2
+            ):
                 return True
 
         return False
@@ -109,7 +119,12 @@ class PointMaze(gym.Env):
                 # x_pos = x_hitting_wall
 
         # From up
-        if y_pos < self.lower_wall_height_offset + self.wallheight <= y_pos_old < self.upper_wall_height_offset:
+        if (
+            y_pos
+            < self.lower_wall_height_offset + self.wallheight
+            <= y_pos_old
+            < self.upper_wall_height_offset
+        ):
             x_hitting_wall = (self.lower_wall_height_offset - y_pos_old) / (y_pos - y_pos_old) * (
                 x_pos - x_pos_old
             ) + x_pos_old
@@ -162,7 +177,9 @@ class PointMaze(gym.Env):
         in_zone = self._in_zone(x_pos, y_pos)
         done = in_zone
         if self.dense_reward:
-            reward = -np.linalg.norm(np.array([x_pos - self.zone_width_offset, y_pos - self.zone_height_offset]))
+            reward = -np.linalg.norm(
+                np.array([x_pos - self.zone_width_offset, y_pos - self.zone_height_offset])
+            )
         else:
             reward = self._sparse_reward(in_zone)
 
@@ -172,14 +189,25 @@ class PointMaze(gym.Env):
         if test_state is None:
             self.state = x_pos, y_pos
 
-            return np.array(self.state), reward, done, {"in_zone": in_zone, "ind_zone": [0], "pos": [x_pos, y_pos]}
+            return (
+                np.array(self.state),
+                reward,
+                done,
+                {"in_zone": in_zone, "ind_zone": [0], "pos": [x_pos, y_pos]},
+            )
         else:
             return reward
 
     def reset(self):
         # self.state = np.array([-0.6, self.np_random.uniform(low=self.y_min, high=self.y_max)])
-        x_start = self.start_x + self.np_random.uniform(low=self.x_min, high=self.x_max) / self.scale_action_space
-        y_start = self.start_y + self.np_random.uniform(low=self.y_min, high=self.y_max) / self.scale_action_space
+        x_start = (
+            self.start_x
+            + self.np_random.uniform(low=self.x_min, high=self.x_max) / self.scale_action_space
+        )
+        y_start = (
+            self.start_y
+            + self.np_random.uniform(low=self.y_min, high=self.y_max) / self.scale_action_space
+        )
         self.state = np.array([x_start, y_start])
 
         self.step_count = 0
@@ -199,44 +227,73 @@ class PointMaze(gym.Env):
             self.viewer = rendering.Viewer(screen_width, screen_height)
 
             # 2 walls
-            l, r, t, b = -self.wallwidth / 2, self.wallwidth / 2, self.wallheight / 2, -self.wallheight / 2
+            l, r, t, b = (
+                -self.wallwidth / 2,
+                self.wallwidth / 2,
+                self.wallheight / 2,
+                -self.wallheight / 2,
+            )
 
             upper_wall = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-            upper_trans_width = (self.upper_wall_width_offset - self.x_min) / (self.x_max - self.x_min) * screen_width
+            upper_trans_width = (
+                (self.upper_wall_width_offset - self.x_min)
+                / (self.x_max - self.x_min)
+                * screen_width
+            )
             upper_trans_height = (
-                (self.upper_wall_height_offset - self.y_min) / (self.y_max - self.y_min) * screen_height
+                (self.upper_wall_height_offset - self.y_min)
+                / (self.y_max - self.y_min)
+                * screen_height
             )
 
             self.upper_walltrans = rendering.Transform(
-                translation=(upper_trans_width, upper_trans_height), scale=(scale_width, scale_height)
+                translation=(upper_trans_width, upper_trans_height),
+                scale=(scale_width, scale_height),
             )
 
             upper_wall.add_attr(self.upper_walltrans)
             self.viewer.add_geom(upper_wall)
 
             lower_wall = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-            lower_trans_width = (self.lower_wall_width_offset - self.x_min) / (self.x_max - self.x_min) * screen_width
+            lower_trans_width = (
+                (self.lower_wall_width_offset - self.x_min)
+                / (self.x_max - self.x_min)
+                * screen_width
+            )
             lower_trans_height = (
-                (self.lower_wall_height_offset - self.y_min) / (self.y_max - self.y_min) * screen_height
+                (self.lower_wall_height_offset - self.y_min)
+                / (self.y_max - self.y_min)
+                * screen_height
             )
 
             self.lower_walltrans = rendering.Transform(
-                translation=(lower_trans_width, lower_trans_height), scale=(scale_width, scale_height)
+                translation=(lower_trans_width, lower_trans_height),
+                scale=(scale_width, scale_height),
             )
 
             lower_wall.add_attr(self.lower_walltrans)
             self.viewer.add_geom(lower_wall)
 
             # Zone to reach
-            l, r, t, b = -self.zone_width / 2, self.zone_width / 2, self.zone_width / 2, -self.zone_width / 2
+            l, r, t, b = (
+                -self.zone_width / 2,
+                self.zone_width / 2,
+                self.zone_width / 2,
+                -self.zone_width / 2,
+            )
 
             zone = rendering.make_polygon([(l, b), (l, t), (r, t), (r, b)], filled=False)
 
-            translation_width = (self.zone_width_offset - self.x_min) / (self.x_max - self.x_min) * screen_width
-            translation_height = (self.zone_height_offset - self.y_min) / (self.y_max - self.y_min) * screen_height
+            translation_width = (
+                (self.zone_width_offset - self.x_min) / (self.x_max - self.x_min) * screen_width
+            )
+            translation_height = (
+                (self.zone_height_offset - self.y_min) / (self.y_max - self.y_min) * screen_height
+            )
 
             zone_trans = rendering.Transform(
-                translation=(translation_width, translation_height), scale=(scale_width, scale_height)
+                translation=(translation_width, translation_height),
+                scale=(scale_width, scale_height),
             )
             zone.add_attr(zone_trans)
             self.viewer.add_geom(zone)

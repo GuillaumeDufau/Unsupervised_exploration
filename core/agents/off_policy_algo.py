@@ -5,7 +5,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class OffPolicyAlgorithm(ABC):
-    def __init__(self, actor, critic, name='actor-critic'):
+    def __init__(self, actor, critic, name="actor-critic"):
         self.actor = actor
         self.critic = critic
         self.name = name
@@ -23,12 +23,13 @@ class OffPolicyAlgorithm(ABC):
         pass
 
     def save(self, filename, directory):
-        torch.save(self.actor.state_dict(), '%s/%s_actor.pth' % (directory, filename))
-        torch.save(self.critic.state_dict(), '%s/%s_critic.pth' % (directory, filename))
+        torch.save(self.actor.state_dict(), "%s/%s_actor.pth" % (directory, filename))
+        torch.save(self.critic.state_dict(), "%s/%s_critic.pth" % (directory, filename))
 
     def load(self, filename, directory):
-        self.actor.load_state_dict(torch.load('%s/%s_actor.pth' % (directory, filename), map_location=device))
-        self.critic.load_state_dict(torch.load('%s/%s_critic.pth' % (directory, filename), map_location=device))
-
-
-
+        self.actor.load_state_dict(
+            torch.load("%s/%s_actor.pth" % (directory, filename), map_location=device)
+        )
+        self.critic.load_state_dict(
+            torch.load("%s/%s_critic.pth" % (directory, filename), map_location=device)
+        )

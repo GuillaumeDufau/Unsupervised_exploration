@@ -6,7 +6,9 @@ from core.trainer import Trainer
 
 def _get_parser_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="unsup_explo_maze.json", help="path to json config")
+    parser.add_argument(
+        "--config", type=str, default="unsup_explo_maze.json", help="path to json config"
+    )
     args = parser.parse_args()
     return args
 

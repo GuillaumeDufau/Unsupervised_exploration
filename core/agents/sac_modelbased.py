@@ -1,6 +1,8 @@
 import torch.nn.functional as F
 import numpy as np
 import os
+from typing import List, Set, Dict, Tuple, Optional, Callable, Any
+from gym.spaces import Box
 
 from core.agents.sac import SAC
 from core.utils.mpi_utils import mpi_avg_grads, MPI, sync_params, create_comm_correspondences
@@ -19,7 +21,7 @@ rank = comm.Get_rank()
 
 
 class sacModelBased(SAC):
-    def __init__(self, obs_space, action_space, config):
+    def __init__(self, obs_space: Box, action_space: Box, config: dict):
 
         super(sacModelBased, self).__init__(obs_space, action_space, config)
 
@@ -32,7 +34,9 @@ class sacModelBased(SAC):
         # parameters for the model's copy, useful to refresh the custom rewards
         self.model_copy = None
 
-    def initiate_model(self, inputs, outputs, config, comm=None):
+    def initiate_model(
+        self, inputs: np.ndarray, outputs: np.ndarray, config: dict, comm: Optional[Any] = None
+    ):
         """
         The Gaussian Process needs to be created along some data
         Initiate model is called along with the first training step and creates + fit the model
@@ -43,6 +47,7 @@ class sacModelBased(SAC):
         :param config: dict from the config files
         :param comm: ID of the current thread
         """
+
         if config["model_type"] == "GP":
             # Gaussian process needs to be initialized knowing the max amount of data it will encounter
             total_num_data = (
@@ -71,7 +76,7 @@ class sacModelBased(SAC):
             for model in self.model.models:
                 sync_params(model)
 
-    def select_action(self, observation, deterministic=True):
+    def select_action(self, observation: np.ndarray, deterministic: bool = True) -> np.ndarray:
         if observation.ndim == 1:
             # single prediction useful during rollout phases
             observation = torch.FloatTensor(observation.reshape(1, -1)).to(device)
@@ -83,7 +88,7 @@ class sacModelBased(SAC):
             observation = torch.FloatTensor(observation).to(device)
             return self.actor(observation, deterministic=deterministic)[0].cpu().data.numpy()
 
-    def save_model(self, path, steps):
+    def save_model(self, path: str, steps: int):
         """
         saves the model's weights + value and policy networks from self.save() parent function
         :param path: where to store it
@@ -97,11 +102,12 @@ class sacModelBased(SAC):
         torch.save(self.model.state_dict(), path + "model_steps_{}.pth".format(steps))
         self.save(f"steps_{steps}", path)
 
-    def update_model_copy_weights(self, model_type):
+    def update_model_copy_weights(self, model_type: str):
         """
         actualizes the model's copy weights
         :param model_type: "GP" or "ensemble"
         """
+
         if model_type == "GP":
             model_statedict = self.model.state_dict()
             self.model_copy.load_state_dict(model_statedict)
@@ -113,12 +119,12 @@ class sacModelBased(SAC):
 
     def compute_rewards(
         self,
-        observations,
-        actions,
-        reward_function,
-        imagination_horizon=1,
-        dimensions_of_interest=None,
-    ):
+        observations: torch.tensor,
+        actions: torch.tensor,
+        reward_function: Optional[Callable[[np.ndarray], List[np.ndarray]]] = None,
+        imagination_horizon: int = 1,
+        dimensions_of_interest: Optional[np.ndarray] = None,
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
         Compute each sample's reward depending on the training phase we're in.
         If unsupervised, reward_function is None. Therefore the rewards are the model's uncertainties
@@ -130,6 +136,7 @@ class sacModelBased(SAC):
                 dimensions where no noise is inputed to get the model's uncertainty.
                 if dimensions_of_interest is None, no noise but the entire sample s_t serves as input
         """
+
         # data is couple (state, action) which is the input for the model
         data = torch.cat((torch.Tensor(observations), torch.Tensor(actions)), dim=1)
         if not reward_function:
@@ -150,12 +157,19 @@ class sacModelBased(SAC):
 
         return rewards, data
 
-    def train_on_batch(self, batch, imagination_horizon=1, reward_function=None, comm=None):
+    def train_on_batch(
+        self,
+        batch: Dict[str, np.ndarray],
+        imagination_horizon: int = 1,
+        reward_function: Optional[Callable[[np.ndarray], List[np.ndarray]]] = None,
+        comm: Optional[Any] = None,
+    ):
         """
         Trains the SAC networks + the model.
         Each model type, GP or ensemble has its own train() built-in function / method
         Recomputes the rewards before each update using the uncertainty of the model as reward signal
         """
+
         # increment iteration counter
         self._n_train_steps_total += 1
 

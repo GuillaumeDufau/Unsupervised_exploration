@@ -4,6 +4,7 @@ import gym
 import numpy as np
 import torch
 from mpi4py import MPI
+from typing import Optional
 
 from core.utils.point_maze import PointMaze
 
@@ -44,7 +45,7 @@ class Trainer:
     It also handles the environments steps and visual and weights saves.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: dict):
         """Initializes the learner.
         Main args (in config):
           num_workers: number of processes for parallel runs.
@@ -130,8 +131,16 @@ class Trainer:
                 "global_evalutations": [global_eval_score],
             }
 
-    def evaluate(self, env, num_eval_episodes=1, visual=False, traces=False, timestep=None):
+    def evaluate(
+        self,
+        env,
+        num_eval_episodes: int = 1,
+        visual: bool = False,
+        traces: bool = False,
+        timestep: Optional[int] = None,
+    ) -> float:
         """Evaluate the state of learning"""
+
         avg_reward = 0.0
         for i in range(num_eval_episodes):
             actions_taken = []
@@ -174,6 +183,7 @@ class Trainer:
           - run one env step
           - if final step: saves specific final visuals and information
         """
+
         torch.set_num_threads(1)
         if rank == 0:
             file_name = "%s_%s_%s" % (

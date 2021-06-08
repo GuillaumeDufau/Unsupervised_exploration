@@ -1,3 +1,5 @@
+from typing import List, Set, Dict, Tuple, Optional, Callable, Any
+
 from core.agents.off_policy_algo import OffPolicyAlgorithm
 import torch.nn.functional as F
 import numpy as np
@@ -109,7 +111,7 @@ class Critic(nn.Module):
 
 
 class SAC(OffPolicyAlgorithm):
-    def __init__(self, obs_space, action_space, config):
+    def __init__(self, obs_space: Box, action_space: Box, config: dict):
 
         observation_dim = obs_space.shape[0]
         assert isinstance(action_space, Box), "action space is not Continuous"
@@ -149,11 +151,11 @@ class SAC(OffPolicyAlgorithm):
         self.reward_scale = config["reward_scale"]
         self._n_train_steps_total = 0
 
-    def select_action(self, observation, deterministic=True):
+    def select_action(self, observation: np.ndarray, deterministic: bool = True) -> np.ndarray:
         observation = torch.FloatTensor(observation.reshape(1, -1)).to(device)
         return self.actor(observation, deterministic=deterministic)[0].cpu().data.numpy().flatten()
 
-    def train_on_batch(self, batch):
+    def train_on_batch(self, batch: Dict[str, np.ndarray]):
         # increment iteration counter
         self._n_train_steps_total += 1
 
